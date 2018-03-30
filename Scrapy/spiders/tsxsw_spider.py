@@ -1,35 +1,49 @@
 #!/usr/bin/env python
 #coding:utf-8
-# 启动命令 Scrapy crawl dmoz
+# 启动命令 Scrapy crawl tsxsw
 from Scrapy.items import ScrapyItem
+import Scrapy.tools.tools as tools
 import scrapy
 import io
 import os
 
+# 爬小说网站
 # 如果用目录页作为startpage，则解析目录页以后产生的多个request，是并发的进行请求，会导致保存的小说章节错序，因此，抓小说的时候，用第一张的页面作为起始页
+# 并发抓取，每一章节生成一个文件，然后只用dos命令进行合并，例如
+# copy download\和表姐同居的日子\* download\和表姐同居的日子.txt
 
-class DmozSpider(scrapy.Spider):
+class TsxswSpider(scrapy.Spider):
     name = "tsxsw"
-    allowed_domains = ["dmoz.org"]
-    main_page = "http://www.tsxsw.com/html/18/18759/"
-    save_path = '2'
+    allowed_domains = ["tsxsw.com"]
+    main_page = "http://www.tsxsw.com/html/44/44043/"
+    save_path = ''
     start_urls = [main_page,]
 #    rules = [Rule(LinkExtractor(allow=['/tor/\d+']), 'parse_torrent')]   
 
+    def __init__(self, url=None, *args, **kwargs):
+        super(TsxswSpider, self).__init__(*args, **kwargs)
+        if url is not None:
+            self.main_page = url
+            self.start_urls = [url]
+
     
     def parse(self, response):
+        tools.save_to_file('1.html', response.body)
         
         # 提取书名、作者和简介
         div_articleinfo = response.xpath('//div[@class="articleinfo"]')[0]
         div_article = div_articleinfo.xpath('//div[@class="p1"]')
         div_comment = div_articleinfo.xpath('//p[@class="p3"]')
 
+        # 作者和简介有可能为空，因此多一次处理
         book = div_article[0].xpath('//h1/text()').extract()[0]
-        article = div_article[0].xpath('//span/text()').extract()[0]
-        comment = div_comment[0].xpath('text()').extract()[0]
+        article = div_article[0].xpath('//span/text()').extract()
+        article = '' if len(article) == 0 else article[0]
+        comment = div_comment[0].xpath('text()').extract()
+        comment = '' if len(comment) == 0 else comment[0]
         
-        if not os.path.exists(self.save_path):
-            os.mkdir(self.save_path)
+        self.save_path = 'download/%s' % book
+        tools.tools_mkdir(self.save_path)
 
         # 写简介
         file_name = '%s/%04d_%s_%s.txt' % (self.save_path, 0, book, article)
@@ -49,6 +63,7 @@ class DmozSpider(scrapy.Spider):
         for index, chapter in enumerate(div_list):
             url = self.main_page + chapter.xpath('@href').extract()[0]
             name = chapter.xpath('text()').extract()[0]
+            name = tools.tools_avalid_name(name)
             #print name, url
                     
             item = ScrapyItem()
@@ -106,9 +121,3 @@ class DmozSpider(scrapy.Spider):
         '''
             
 
- 
- 
-                   
-#        url_split = response.url.split("/")#[-1] + '.log'
- #       url_split[-1] = 
-#        return items

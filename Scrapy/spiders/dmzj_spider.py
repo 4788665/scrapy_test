@@ -6,8 +6,7 @@ import scrapy
 import io,re
 import os
 
-# 如果用目录页作为startpage，则解析目录页以后产生的多个request，是并发的进行请求，会导致保存的小说章节错序，因此，抓小说的时候，用第一张的页面作为起始页
-
+# 由于漫画网站的页面都是用js动态生成链接的，当前还不会，因此本页面功能无效
 
 
 
@@ -98,15 +97,17 @@ class DmozSpider(scrapy.Spider):
            # f.write(chapter_content + '\n\n')        
         
  
-                   
+# 检查目录是否存在，如果不存在，则创建，只支持最后一级目录不存在
 def tools_mkdir(dir_path) :
     if not os.path.exists(dir_path):
         os.mkdir(dir_path)
     
+# 从路径中取出文件名（最后一个/后边的部分)
 def tools_get_filename(file_path) :
     url_split = file_path.split("/")#[-1] + '.log'
     return url_split[-1]
 
+# 删除字符串中的回车换行符和空格
 def tools_avalid_name(file_path) :
-    return file_path.strip().replace("\n\r", '')
+    return file_path.strip().replace("\n\r ", '')
     
