@@ -68,7 +68,7 @@ class DmozSpider(scrapy.Spider):
             print comic_name
             self.save_path = comic_name
         
-        tools_mkdir(self.save_path)
+        tools.create_dirs(self.save_path)
 
         requests = []
 #        return requests
@@ -81,7 +81,7 @@ class DmozSpider(scrapy.Spider):
         for index, chapter in enumerate(div_list):
             url = self.host_url + chapter.xpath('@href').extract()[0]
             name = chapter.xpath('text()').extract()[0]
-            #name = tools_avalid_name(name)
+            #name = tools.get_avalid_name(name)
 
 
             print name, url
@@ -105,7 +105,7 @@ class DmozSpider(scrapy.Spider):
 
     def parse_chapter(self, response):
     
-        filename = tools_get_filename(response.url)
+        filename = tools.get_filename(response.url)
         with open(filename, 'wb') as f:
             f.write(response.body)
             
@@ -124,15 +124,4 @@ class DmozSpider(scrapy.Spider):
            # f.write(chapter_content + '\n\n')        
         
  
-                   
-def tools_mkdir(dir_path) :
-    if not os.path.exists(dir_path):
-        os.mkdir(dir_path)
-    
-def tools_get_filename(file_path) :
-    url_split = file_path.split("/")#[-1] + '.log'
-    return url_split[-1]
-
-def tools_avalid_name(file_path) :
-    return file_path.strip().replace("\n\r", '')
-    
+             

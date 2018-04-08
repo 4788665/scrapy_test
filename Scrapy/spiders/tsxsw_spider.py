@@ -28,7 +28,7 @@ class TsxswSpider(scrapy.Spider):
 
     
     def parse(self, response):
-        tools.save_to_file('1.html', response.body)
+        #tools.save_to_file('1.html', response.body)
         
         # 提取书名、作者和简介
         div_articleinfo = response.xpath('//div[@class="articleinfo"]')[0]
@@ -43,7 +43,7 @@ class TsxswSpider(scrapy.Spider):
         comment = '' if len(comment) == 0 else comment[0]
         
         self.save_path = 'download/%s' % book
-        tools.tools_mkdir(self.save_path)
+        tools.create_dirs(self.save_path)
 
         # 写简介
         file_name = '%s/%04d_%s_%s.txt' % (self.save_path, 0, book, article)
@@ -63,7 +63,7 @@ class TsxswSpider(scrapy.Spider):
         for index, chapter in enumerate(div_list):
             url = self.main_page + chapter.xpath('@href').extract()[0]
             name = chapter.xpath('text()').extract()[0]
-            name = tools.tools_avalid_name(name)
+            name = tools.get_avalid_name(name)
             #print name, url
                     
             item = ScrapyItem()
