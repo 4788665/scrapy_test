@@ -3,6 +3,7 @@
 
 # 启动命令 Scrapy crawl tsxsw
 from Scrapy.items import ScrapyItem
+from txt_spider import TxtSpiderBase
 import Scrapy.tools.tools as tools
 import scrapy
 import io
@@ -14,16 +15,11 @@ import os,sys
 # 并发抓取，每一章节生成一个文件，然后只用dos命令进行合并，例如
 # copy download\和表姐同居的日子\* download\和表姐同居的日子.txt
 
-class QisuuSpider(scrapy.Spider):
+class QisuuSpider(TxtSpiderBase):
     name = "qisuu"
     allowed_domains = ["qisuu.com"]
     main_page = "https://www.qisuu.la/du/36/36898/"
     start_urls = [main_page,]
-    
-    root_path = os.curdir + '/download'
-    save_path = ''
-    book_name = ''
-    chapter_remain = 0
     
 #    rules = [Rule(LinkExtractor(allow=['/tor/\d+']), 'parse_torrent')]   
 
@@ -35,13 +31,13 @@ class QisuuSpider(scrapy.Spider):
 
     
     def parse(self, response):
-        #tools.save_to_file('1.html', response.body)
+        #self.save_response(response)
         
         # 提取书名、作者和简介
         div_articleinfo = response.xpath('//div[@class="info_des"]')[0]
 
         # 作者和简介有可能为空，因此多一次处理
-        self.book_name = div_articleinfo.xpath('//h1/text()').extract()[0]
+        name = div_articleinfo.xpath('//h1/text()').extract()[0]
         article = div_articleinfo.xpath('//dl/text()').extract()
         print article
         article = '' if len(article) == 0 else article[0]
@@ -50,24 +46,18 @@ class QisuuSpider(scrapy.Spider):
         for i,x in enumerate(comment1):
             comment += x + '\n\r'
        
-        print self.book_name
-        print article.encode("GBK", 'ignore');
-        print comment.encode("GBK", 'ignore');
+        #print name
+#        print article.encode("GBK", 'ignore');
+ #       print comment.encode("GBK", 'ignore');
 
-        self.save_path = '%s/%s' % (self.root_path, self.book_name)
-        tools.create_dirs(self.save_path)
+        self.book_name(name)
 
         # 写简介
-        file_name = '%s/%04d_%s_%s.txt' % (self.save_path, 0, self.book_name, article)
-        f = io.open(file_name, 'w', encoding='utf-8')
-        f.write(u'书名:%s\n%s\n简介:\n%s\n' % (self.book_name, article, comment) )
-        f.close()
-        
+        content = u'书名:%s\n%s\n简介:\n%s\n' % (name, article, comment) 
+        self.write_content(0, name, content)        
 
-        
+      
         requests = []
-#        return requests
-    
         
         # 提取章节名和url
         div_list = response.xpath('//div[@id="info"]/div[@class="pc_list"]')[1]
@@ -87,16 +77,15 @@ class QisuuSpider(scrapy.Spider):
             requests.append(request)
 
         # 记录章节数量   
-        self.chapter_remain = len(requests)
+        self.chapter_count(len(requests))
+
         return requests
 
     def parse_chapter(self, response):
-    
+
     #def parse(self, response):
-        #print  response.request.meta['item'].__dict__
-        #print u'标题 : ', response.xpath('/html/head/title/text()').extract()[0]
+
         
-        self.chapter_remain -= 1
         
         item = response.meta['item']
         
@@ -106,8 +95,6 @@ class QisuuSpider(scrapy.Spider):
             return []
         
         
-        file_name = '%s/%04d_%s.txt' % (self.save_path , item['index'], item['chapter_name'])
-        f = io.open(file_name, 'w', encoding='utf-8')
         
         # 取标题和内容
         #div_title = div_main[0].xpath('h1/text()') #标题使用传入的参数
@@ -118,24 +105,19 @@ class QisuuSpider(scrapy.Spider):
         
         #chapter_name = div_title[0].extract()
         chapter_name = item['chapter_name']
-        f.write(chapter_name  + '\n')
-
-        for sel in div_content:
-            chapter_content = sel.extract()
-            f.write(chapter_content + '\n\n')
-            
-        f.write(u'\n')
         
-    
-        # 取得全部章节以后，用shell命令进行拼接成单一文件        
-        if self.chapter_remain <= 0 :
-            cmd = 'copy %s/* %s/%s.txt' % (self.save_path, self.root_path,  self.book_name)
-            if tools.is_windows_os() :
-                cmd = cmd.replace('/', '\\')
-            cmd = cmd.encode("GBK", 'ignore');
-            os.system(cmd)
+        content_lst = [ chapter_name ]
+        for sel in div_content:
+            content_lst.append( sel.extract() )
+        
+        
+        # 写
+        self.write_content(item['index'], chapter_name, content_lst)        
 
-            '''
+        
+        self.together_book()
+    
+        '''
         # 取下一章的地址
         div_page = div_main[0].xpath('div[@class=\'chapterpage\']/ul/li/a/@href').extract()
         if len(div_page) < 3:
