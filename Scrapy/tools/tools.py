@@ -1,8 +1,7 @@
 #!D:\5.Python\python.exe
 #coding:utf-8
 
-import io
-import os
+import io, os, sys
 
 # 保存到文件中
 def save_to_file(filename, string):
@@ -38,3 +37,6 @@ def get_avalid_name(str, str1='\n|\r|*', str2='') :
     return str
     #return str.strip().replace(str1, str2)
 
+def is_windows_os() :
+    return os.name == 'nt'
+    #return sys.name == 'win32'

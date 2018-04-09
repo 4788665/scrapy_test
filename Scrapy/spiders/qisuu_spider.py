@@ -6,7 +6,7 @@ from Scrapy.items import ScrapyItem
 import Scrapy.tools.tools as tools
 import scrapy
 import io
-import os
+import os,sys
 
 # https://www.qisuu.la/
 # 爬小说网站
@@ -18,8 +18,13 @@ class QisuuSpider(scrapy.Spider):
     name = "qisuu"
     allowed_domains = ["qisuu.com"]
     main_page = "https://www.qisuu.la/du/36/36898/"
-    save_path = ''
     start_urls = [main_page,]
+    
+    root_path = os.curdir + '/download'
+    save_path = ''
+    book_name = ''
+    chapter_remain = 0
+    
 #    rules = [Rule(LinkExtractor(allow=['/tor/\d+']), 'parse_torrent')]   
 
     def __init__(self, url=None, *args, **kwargs):
@@ -36,7 +41,7 @@ class QisuuSpider(scrapy.Spider):
         div_articleinfo = response.xpath('//div[@class="info_des"]')[0]
 
         # 作者和简介有可能为空，因此多一次处理
-        book = div_articleinfo.xpath('//h1/text()').extract()[0]
+        self.book_name = div_articleinfo.xpath('//h1/text()').extract()[0]
         article = div_articleinfo.xpath('//dl/text()').extract()
         print article
         article = '' if len(article) == 0 else article[0]
@@ -45,17 +50,17 @@ class QisuuSpider(scrapy.Spider):
         for i,x in enumerate(comment1):
             comment += x + '\n\r'
        
-        print book
+        print self.book_name
         print article.encode("GBK", 'ignore');
         print comment.encode("GBK", 'ignore');
 
-        self.save_path = 'download/%s' % book
+        self.save_path = '%s/%s' % (self.root_path, self.book_name)
         tools.create_dirs(self.save_path)
 
         # 写简介
-        file_name = '%s/%04d_%s_%s.txt' % (self.save_path, 0, book, article)
+        file_name = '%s/%04d_%s_%s.txt' % (self.save_path, 0, self.book_name, article)
         f = io.open(file_name, 'w', encoding='utf-8')
-        f.write(u'书名:%s\n%s\n简介:\n%s\n' % (book, article, comment) )
+        f.write(u'书名:%s\n%s\n简介:\n%s\n' % (self.book_name, article, comment) )
         f.close()
         
 
@@ -81,6 +86,8 @@ class QisuuSpider(scrapy.Spider):
             request.meta['item'] = item
             requests.append(request)
 
+        # 记录章节数量   
+        self.chapter_remain = len(requests)
         return requests
 
     def parse_chapter(self, response):
@@ -88,6 +95,8 @@ class QisuuSpider(scrapy.Spider):
     #def parse(self, response):
         #print  response.request.meta['item'].__dict__
         #print u'标题 : ', response.xpath('/html/head/title/text()').extract()[0]
+        
+        self.chapter_remain -= 1
         
         item = response.meta['item']
         
@@ -117,7 +126,16 @@ class QisuuSpider(scrapy.Spider):
             
         f.write(u'\n')
         
-        '''
+    
+        # 取得全部章节以后，用shell命令进行拼接成单一文件        
+        if self.chapter_remain <= 0 :
+            cmd = 'copy %s/* %s/%s.txt' % (self.save_path, self.root_path,  self.book_name)
+            if tools.is_windows_os() :
+                cmd = cmd.replace('/', '\\')
+            cmd = cmd.encode("GBK", 'ignore');
+            os.system(cmd)
+
+            '''
         # 取下一章的地址
         div_page = div_main[0].xpath('div[@class=\'chapterpage\']/ul/li/a/@href').extract()
         if len(div_page) < 3:
